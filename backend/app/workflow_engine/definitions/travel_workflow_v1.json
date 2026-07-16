@@ -1,0 +1,95 @@
+{
+  "name": "travel_workflow",
+  "version": "v1",
+  "description": "End-to-end corporate travel booking workflow including flight, hotel, approval, and finance",
+  "sla_hours": 24,
+  "steps": [
+    {
+      "name": "validation",
+      "agent": "ValidationAgent",
+      "description": "Validate employee identity, passport, and request completeness",
+      "retry_limit": 2,
+      "on_failure": "escalate",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "policy_check",
+      "agent": "PolicyAgent",
+      "description": "Query policy knowledge base for applicable travel rules and budget limits",
+      "retry_limit": 1,
+      "on_failure": "abort",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "flight_search",
+      "agent": "TravelAgent",
+      "description": "Search for available flights and select best option per policy",
+      "retry_limit": 3,
+      "on_failure": "retry",
+      "timeout_seconds": 60,
+      "human_approval": false
+    },
+    {
+      "name": "hotel_search",
+      "agent": "HotelAgent",
+      "description": "Search and select hotel accommodation at destination",
+      "retry_limit": 2,
+      "on_failure": "skip",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "manager_approval",
+      "agent": "ApprovalAgent",
+      "description": "Request manager approval for travel authorization",
+      "retry_limit": 1,
+      "on_failure": "escalate",
+      "timeout_seconds": null,
+      "human_approval": true,
+      "approval_level": 1,
+      "approval_role": "manager",
+      "timeout_hours": 48
+    },
+    {
+      "name": "finance_approval",
+      "agent": "ApprovalAgent",
+      "description": "Request finance team budget approval",
+      "retry_limit": 1,
+      "on_failure": "escalate",
+      "timeout_seconds": null,
+      "human_approval": true,
+      "approval_level": 2,
+      "approval_role": "finance_admin",
+      "timeout_hours": 24
+    },
+    {
+      "name": "finance_processing",
+      "agent": "FinanceAgent",
+      "description": "Create invoice, allocate budget, and initiate payment process",
+      "retry_limit": 2,
+      "on_failure": "escalate",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "notification",
+      "agent": "NotificationAgent",
+      "description": "Notify employee, manager, and finance of completed booking",
+      "retry_limit": 3,
+      "on_failure": "log",
+      "timeout_seconds": 15,
+      "human_approval": false
+    },
+    {
+      "name": "audit",
+      "agent": "AuditAgent",
+      "description": "Create immutable audit trail for the completed workflow",
+      "retry_limit": 1,
+      "on_failure": "log",
+      "timeout_seconds": 10,
+      "human_approval": false
+    }
+  ]
+}

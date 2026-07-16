@@ -1,0 +1,74 @@
+{
+  "name": "leave_workflow",
+  "version": "v1",
+  "description": "Employee leave request processing with manager approval and HR update",
+  "sla_hours": 48,
+  "steps": [
+    {
+      "name": "validation",
+      "agent": "ValidationAgent",
+      "description": "Validate employee, leave type, and date eligibility",
+      "retry_limit": 2,
+      "on_failure": "escalate",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "policy_check",
+      "agent": "PolicyAgent",
+      "description": "Check leave policy, balance, and blackout dates",
+      "retry_limit": 1,
+      "on_failure": "abort",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "leave_processing",
+      "agent": "LeaveAgent",
+      "description": "Verify leave balance and prepare leave request",
+      "retry_limit": 2,
+      "on_failure": "abort",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "manager_approval",
+      "agent": "ApprovalAgent",
+      "description": "Request manager approval for leave",
+      "retry_limit": 1,
+      "on_failure": "escalate",
+      "timeout_seconds": null,
+      "human_approval": true,
+      "approval_level": 1,
+      "approval_role": "manager",
+      "timeout_hours": 48
+    },
+    {
+      "name": "hr_update",
+      "agent": "HRAgent",
+      "description": "Update HR system with approved leave and deduct balance",
+      "retry_limit": 2,
+      "on_failure": "escalate",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "notification",
+      "agent": "NotificationAgent",
+      "description": "Notify employee of leave decision and team calendar update",
+      "retry_limit": 3,
+      "on_failure": "log",
+      "timeout_seconds": 15,
+      "human_approval": false
+    },
+    {
+      "name": "audit",
+      "agent": "AuditAgent",
+      "description": "Record leave approval in audit trail",
+      "retry_limit": 1,
+      "on_failure": "log",
+      "timeout_seconds": 10,
+      "human_approval": false
+    }
+  ]
+}

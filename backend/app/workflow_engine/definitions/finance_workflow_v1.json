@@ -1,0 +1,77 @@
+{
+  "name": "finance_workflow",
+  "version": "v1",
+  "description": "General expense reimbursement and invoice processing workflow",
+  "sla_hours": 24,
+  "steps": [
+    {
+      "name": "validation",
+      "agent": "ValidationAgent",
+      "description": "Validate expense claim and supporting documents",
+      "retry_limit": 2,
+      "on_failure": "escalate",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "policy_check",
+      "agent": "PolicyAgent",
+      "description": "Check expense against finance policy and spending limits",
+      "retry_limit": 1,
+      "on_failure": "abort",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "finance_review",
+      "agent": "FinanceAgent",
+      "description": "Review expense, create invoice, and verify budget availability",
+      "retry_limit": 2,
+      "on_failure": "escalate",
+      "timeout_seconds": 30,
+      "human_approval": false
+    },
+    {
+      "name": "manager_approval",
+      "agent": "ApprovalAgent",
+      "description": "Manager approval for expense reimbursement",
+      "retry_limit": 1,
+      "on_failure": "escalate",
+      "timeout_seconds": null,
+      "human_approval": true,
+      "approval_level": 1,
+      "approval_role": "manager",
+      "timeout_hours": 24
+    },
+    {
+      "name": "finance_approval",
+      "agent": "ApprovalAgent",
+      "description": "Finance admin approval and payment processing",
+      "retry_limit": 1,
+      "on_failure": "escalate",
+      "timeout_seconds": null,
+      "human_approval": true,
+      "approval_level": 2,
+      "approval_role": "finance_admin",
+      "timeout_hours": 24
+    },
+    {
+      "name": "notification",
+      "agent": "NotificationAgent",
+      "description": "Notify employee and finance team of reimbursement status",
+      "retry_limit": 3,
+      "on_failure": "log",
+      "timeout_seconds": 15,
+      "human_approval": false
+    },
+    {
+      "name": "audit",
+      "agent": "AuditAgent",
+      "description": "Financial audit trail",
+      "retry_limit": 1,
+      "on_failure": "log",
+      "timeout_seconds": 10,
+      "human_approval": false
+    }
+  ]
+}
