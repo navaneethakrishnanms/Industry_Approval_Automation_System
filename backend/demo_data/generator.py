@@ -203,7 +203,7 @@ async def seed_employees(session: AsyncSession, tenants: list, departments: list
         # Add admin user for each tenant
         admin = Employee(
             id=str(uuid.uuid4()),
-            employee_id=f"EMP-ADMIN-{tenant.id[:4].upper()}",
+            employee_id=f"EMP-ADMIN-{tenant.name[:6].upper().replace(' ', '')}",
             name=f"Admin {tenant.name}",
             email=f"admin@{tenant.domain}",
             designation="System Administrator",
