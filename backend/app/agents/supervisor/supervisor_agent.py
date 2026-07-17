@@ -166,8 +166,22 @@ class SupervisorAgent(BaseAgent):
             .where(WFStep.workflow_id == workflow_id)
             .order_by(WFStep.step_index)
         )
-        completed_steps = [s for s in steps_result.scalars().all() if s.status == "completed"]
-        resume_from = len(completed_steps)
+        all_steps = steps_result.scalars().all()
+
+        # Mark any "waiting" or "running" step (the approval gate) as completed
+        # so the engine doesn't re-run it when it resumes
+        for s in all_steps:
+            if s.status in ("waiting", "running"):
+                s.status = "completed"
+                s.completed_at = datetime.now(timezone.utc).isoformat()
+                s.reasoning = "Approved by manager — resuming workflow"
+
+        # Resume from the step AFTER the last non-pending step
+        non_pending = [s for s in all_steps if s.status in ("completed", "skipped")]
+        resume_from = len(non_pending)
+
+        await session.flush()
+
 
         wf_record.status = WorkflowStatus.RUNNING
         await session.flush()

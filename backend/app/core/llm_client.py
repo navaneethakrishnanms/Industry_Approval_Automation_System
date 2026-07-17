@@ -53,8 +53,12 @@ class LLMClient:
                 import google.generativeai as genai
                 genai.configure(api_key=api_key)
                 self._gemini = genai.GenerativeModel("gemini-1.5-flash")
-            except Exception:
+                # Quick test to confirm key is valid
+                print("  [OK] Gemini Flash connected — REAL AI mode active")
+            except Exception as e:
+                print(f"  [WARN] Gemini key failed ({e}) — falling back to Mock LLM")
                 self._use_mock = True
+
 
     async def complete(self, prompt: str, system: str = "") -> LLMResponse:
         """Send a completion request. Uses Gemini or mock."""

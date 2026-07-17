@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -121,6 +121,7 @@ async def list_approvals(
 async def approve_request(
     approval_id: str,
     body: ApprovalDecisionRequest,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_db),
     tenant_id: str = Depends(get_tenant_id),
 ):
@@ -151,25 +152,32 @@ async def approve_request(
         tenant_id=tenant_id,
     )
 
-    # Resume workflow in background
-    from fastapi import BackgroundTasks
+    # Capture values before session closes
+    workflow_id = approval.workflow_id
+
     async def resume():
+        import traceback
         from app.database.base import AsyncSessionLocal
         async with AsyncSessionLocal() as bg_session:
             try:
                 from app.agents.supervisor.supervisor_agent import supervisor_agent
+                print(f"  [Approval] Resuming workflow {workflow_id}...")
                 await supervisor_agent.resume_workflow(
-                    workflow_id=approval.workflow_id,
+                    workflow_id=workflow_id,
                     approval_id=approval_id,
                     session=bg_session,
                     tenant_id=tenant_id,
                 )
+                await bg_session.commit()
+                print(f"  [Approval] Workflow {workflow_id} resumed successfully")
             except Exception as e:
-                print(f"[ApprovalRouter] Resume failed: {e}")
+                await bg_session.rollback()
+                print(f"  [Approval] Resume FAILED: {e}")
+                traceback.print_exc()
 
-    import asyncio
-    asyncio.create_task(resume())
+    background_tasks.add_task(resume)
     return {"message": "Approved. Workflow resuming...", "approval_id": approval_id}
+
 
 
 @approvals_router.post("/{approval_id}/reject")
@@ -339,7 +347,7 @@ async def list_employees(
     tenant_id: str = Depends(get_tenant_id),
 ):
     from app.models.employee import Employee
-    from sqlalchemy import or_, ilike
+    from sqlalchemy import or_
     query = select(Employee).where(Employee.tenant_id == tenant_id, Employee.is_active == True)
     if search:
         query = query.where(or_(Employee.name.ilike(f"%{search}%"), Employee.email.ilike(f"%{search}%")))

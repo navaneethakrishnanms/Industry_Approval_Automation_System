@@ -46,10 +46,10 @@ async def get_current_user(token: str | None = Depends(oauth2_scheme)) -> dict:
     For demo purposes, returns a default admin user if no token provided.
     """
     if not token:
-        # Demo mode: return default admin user
+        # Demo mode: return default admin user (tenant matches seeded data)
         return {
             "employee_id": "demo-employee-001",
-            "tenant_id": "demo-tenant-001",
+            "tenant_id": "tenant-globaltech-001",
             "role": "system_admin",
             "name": "Demo Admin",
         }
@@ -82,4 +82,5 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 
 
 async def get_tenant_id(user: dict = Depends(get_current_user)) -> str:
-    return user.get("tenant_id") or "demo-tenant-001"
+    return user.get("tenant_id") or "tenant-globaltech-001"
+

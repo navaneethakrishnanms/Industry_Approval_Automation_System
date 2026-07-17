@@ -286,6 +286,9 @@ class AuditAgent(BaseAgent):
     owner = "compliance"
 
     async def execute(self, context: WorkflowContext) -> AgentResult:
+        from app.models.system import AuditLog
+        from app.database.base import AsyncSessionLocal
+
         llm_result = await self.llm_reason(
             "audit_agent.summarize",
             workflow_id=context.workflow_id[:8],
@@ -299,17 +302,38 @@ class AuditAgent(BaseAgent):
         )
 
         audit_ref = f"AUD-{str(uuid.uuid4())[:8].upper()}"
+        summary = llm_result.get("summary", "Workflow completed. Audit trail created.")
+
+        # Write to the audit_logs table so the Audit Logs page shows it
+        try:
+            async with AsyncSessionLocal() as db:
+                log_entry = AuditLog(
+                    tenant_id=context.tenant_id,
+                    actor_id=context.employee.id if context.employee else "system",
+                    actor_role="system_agent",
+                    action=f"workflow.{context.workflow_type}.completed",
+                    entity_type="workflow",
+                    entity_id=context.workflow_id,
+                    description=f"[{audit_ref}] {summary}",
+                    metadata_json={"audit_ref": audit_ref, "steps": context.current_step},
+                )
+                db.add(log_entry)
+                await db.commit()
+        except Exception as e:
+            print(f"  [AuditAgent] DB write warning: {e}")
+
         return AgentResult(
             status="success",
             output={
                 "audit_ref": audit_ref,
                 "workflow_id": context.workflow_id,
-                "summary": llm_result.get("summary", "Workflow completed. Audit trail created."),
+                "summary": summary,
                 "immutable": True,
             },
             reasoning="Audit trail created with full execution trace.",
             confidence=1.0, next_action="continue", agent_name=self.name,
         )
+
 
 
 # ── Document Agent ────────────────────────────────────────────────────
